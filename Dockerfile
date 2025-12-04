@@ -3,8 +3,8 @@ WORKDIR /app
 
 RUN apk add --no-cache chromium
 
-COPY ./ ./
-COPY ../casanet-server/backend/src/generated/swagger.json ./swagger.json
+COPY ./dashboard-app ./
+COPY ./casanet-server/backend/src/generated/swagger.json ./swagger.json
 
 RUN rm -rf node_modules package-lock.json
 RUN npm i --force
