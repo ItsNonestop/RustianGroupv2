@@ -1,14 +1,13 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
-RUN apk add --no-cache chromium
+RUN apk add --no-cache chromium openjdk17
 
 COPY ./dashboard-app ./
 COPY ./casanet-server/backend/src/generated/swagger.json ./swagger.json
 
 RUN rm -rf node_modules package-lock.json
 RUN npm i --force
-RUN npm run build
 
 EXPOSE 3000
 
