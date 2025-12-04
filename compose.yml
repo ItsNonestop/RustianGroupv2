@@ -1,16 +1,18 @@
 services:
   web:
-    build: ./dashboard-app
+    build:
+      context: .
+      dockerfile: ./dashboard-app/Dockerfile
     ports:
       - "3000:3000"
     restart: always
-
+    
   api:
     build: ./casanet-server/backend
     ports:
       - "8080:8080"
     restart: always
-
+    
   nginx:
     image: nginx:latest
     ports:
