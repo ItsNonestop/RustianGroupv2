@@ -10,6 +10,7 @@ const API_SERVER_SPEC_BRANCH = process.env.API_SERVER_SPEC_BRANCH !== 'main' ? '
 
 // The Local spec file path, if set the spec will be taken from machine's FS and not be fetched by GitHub artifactory 
 const API_SERVER_SPEC_PATH = process.env.API_SERVER_SPEC_PATH;
+const API_SERVER_SPEC_MODELS_DIR = process.env.API_SERVER_SPEC_MODELS_DIR;
 
 // The spec file name
 const SPEC_FILE_NAME = 'swagger.json';
@@ -24,7 +25,7 @@ const SHARED_MODELS_PATH = `${SPEC_FILE_DEST_DIR}/sharedInterfaces.ts`;
  * @param {*} fileURL The file URI
  * @param {*} sourceDestination The path/name where to place the fetched file
  */
- async function downloadSourceFile(fileURL, sourceDestination) {
+async function downloadSourceFile(fileURL, sourceDestination) {
 	const sharedModelsResponse = await nodeFetch(fileURL);
 	const sharedModelsResponseBuffer = Buffer.from(await sharedModelsResponse.text(), 'utf-8');
 	fse.writeFileSync(path.join(sourceDestination), sharedModelsResponseBuffer);
@@ -42,9 +43,29 @@ const SHARED_MODELS_PATH = `${SPEC_FILE_DEST_DIR}/sharedInterfaces.ts`;
         console.log(`[fetch-api] Coping API Spec from local path "${API_SERVER_SPEC_PATH}"...`);
         // And copy spec file
         await fse.promises.copyFile(path.join(API_SERVER_SPEC_PATH), path.join(SPEC_FILE_DEST_DIR, SPEC_FILE_NAME));
-    } else {
-        await downloadSourceFile(`https://raw.githubusercontent.com/casanet/casanet-server/${API_SERVER_SPEC_BRANCH}/backend/src/generated/swagger.json`, path.join(SPEC_FILE_DEST_DIR, SPEC_FILE_NAME));
+
+        const localModelsDir = API_SERVER_SPEC_MODELS_DIR || path.dirname(API_SERVER_SPEC_PATH);
+        const localChannelSpec = path.join(localModelsDir, 'remote2localProtocol.ts');
+        const localSharedModels = path.join(localModelsDir, 'sharedInterfaces.d.ts');
+
+        const hasLocalChannelSpec = await fse.pathExists(localChannelSpec);
+        const hasLocalSharedModels = await fse.pathExists(localSharedModels);
+
+        if (hasLocalChannelSpec) {
+            await fse.promises.copyFile(localChannelSpec, CHANNEL_SPEC_PATH);
+        }
+
+        if (hasLocalSharedModels) {
+            await fse.promises.copyFile(localSharedModels, SHARED_MODELS_PATH);
+        }
+
+        if (hasLocalChannelSpec && hasLocalSharedModels) {
+            console.log(`[fetch-api] API Spec fetched successfully (local files)`);
+            return;
+        }
     }
+
+    await downloadSourceFile(`https://raw.githubusercontent.com/casanet/casanet-server/${API_SERVER_SPEC_BRANCH}/backend/src/generated/swagger.json`, path.join(SPEC_FILE_DEST_DIR, SPEC_FILE_NAME));
 
     // Those are legacy way of sharing TS interfaces, all new interfaces should be part of the OpenAPI spec only
 	await downloadSourceFile(`https://raw.githubusercontent.com/casanet/casanet-server/${API_SERVER_SPEC_BRANCH}/backend/src/models/remote2localProtocol.ts`, CHANNEL_SPEC_PATH);
