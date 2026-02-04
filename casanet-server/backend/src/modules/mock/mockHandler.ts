@@ -1,8 +1,10 @@
 import * as moment from 'moment';
 import { Duration } from 'moment';
+import * as request from 'request-promise';
 import { CommandsSet } from '../../models/backendInterfaces';
 import { DeviceKind, ErrorResponse, Minion, MinionStatus, SwitchOptions, Toggle } from '../../models/sharedInterfaces';
 import { DeepCopy } from '../../utilities/deepCopy';
+import { logger } from '../../utilities/logger';
 import { Delay } from '../../utilities/sleep';
 import { BrandModuleBase } from '../brandModuleBase';
 
@@ -100,6 +102,13 @@ export class MockHandler extends BrandModuleBase {
    * Time duration to mock physical device status update for ac minion.
    */
   private readonly AC_CHANGED_INTERVAL: Duration = moment.duration(5, 'seconds');
+  private readonly TEMPERATURE_CACHE_TTL: Duration = moment.duration(10, 'minutes');
+  private readonly ABERDEEN_COORDS = {
+    latitude: 57.1497,
+    longitude: -2.0943,
+  };
+  private cachedTemperatureAt?: moment.Moment;
+  private cachedTemperatureC?: number;
 
   constructor() {
     super();
@@ -191,10 +200,11 @@ export class MockHandler extends BrandModuleBase {
           },
         };
       case 'Temperature Sensor Demo':
+        const temperature = await this.getAberdeenTemperatureC();
         return {
           temperatureSensor: {
             status: 'on',
-            temperature:  Math.floor(Math.random() * 1000) / 10,
+            temperature,
           },
         };
     }
@@ -240,5 +250,47 @@ export class MockHandler extends BrandModuleBase {
 
   public async refreshCommunication(): Promise<void> {
     // There's nothing to do.
+  }
+
+  private async getAberdeenTemperatureC(): Promise<number> {
+    if (this.cachedTemperatureAt && this.cachedTemperatureC !== undefined) {
+      const cacheAgeMs = moment().diff(this.cachedTemperatureAt);
+      if (cacheAgeMs < this.TEMPERATURE_CACHE_TTL.asMilliseconds()) {
+        return this.cachedTemperatureC;
+      }
+    }
+
+    try {
+      const response = await request({
+        method: 'GET',
+        uri: 'https://api.open-meteo.com/v1/forecast',
+        qs: {
+          latitude: this.ABERDEEN_COORDS.latitude,
+          longitude: this.ABERDEEN_COORDS.longitude,
+          current: 'temperature_2m',
+          temperature_unit: 'celsius',
+        },
+        json: true,
+      });
+
+      const temperature = Number(response?.current?.temperature_2m);
+      if (!Number.isFinite(temperature)) {
+        throw new Error('Missing temperature in response');
+      }
+
+      this.cachedTemperatureC = Math.round(temperature * 10) / 10;
+      this.cachedTemperatureAt = moment();
+      return this.cachedTemperatureC;
+    } catch (error) {
+      logger.warn(
+        `[MockHandler] Failed to fetch Aberdeen temperature, using cached/fallback. ${JSON.stringify(
+          !error ? error : error.message,
+        )}`,
+      );
+      if (this.cachedTemperatureC !== undefined) {
+        return this.cachedTemperatureC;
+      }
+      return 12 + Math.round(Math.random() * 30) / 10;
+    }
   }
 }
