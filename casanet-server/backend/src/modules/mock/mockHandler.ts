@@ -6,6 +6,7 @@ import { DeviceKind, ErrorResponse, Minion, MinionStatus, SwitchOptions, Toggle 
 import { DeepCopy } from '../../utilities/deepCopy';
 import { logger } from '../../utilities/logger';
 import { Delay } from '../../utilities/sleep';
+import { IntegrationsBlSingleton } from '../../business-layer/integrationsBl';
 import { BrandModuleBase } from '../brandModuleBase';
 
 export class MockHandler extends BrandModuleBase {
@@ -252,6 +253,11 @@ export class MockHandler extends BrandModuleBase {
     // There's nothing to do.
   }
 
+  private async getTemperatureIntegrationSettings() {
+    const settings = await IntegrationsBlSingleton.getMockIntegrationsSettings();
+    return settings?.temperatureSensor || { provider: 'open-meteo' };
+  }
+
   private async getAberdeenTemperatureC(): Promise<number> {
     if (this.cachedTemperatureAt && this.cachedTemperatureC !== undefined) {
       const cacheAgeMs = moment().diff(this.cachedTemperatureAt);
@@ -261,19 +267,37 @@ export class MockHandler extends BrandModuleBase {
     }
 
     try {
-      const response = await request({
-        method: 'GET',
-        uri: 'https://api.open-meteo.com/v1/forecast',
-        qs: {
-          latitude: this.ABERDEEN_COORDS.latitude,
-          longitude: this.ABERDEEN_COORDS.longitude,
-          current: 'temperature_2m',
-          temperature_unit: 'celsius',
-        },
-        json: true,
-      });
+      const integration = await this.getTemperatureIntegrationSettings();
+      let temperature: number | undefined;
 
-      const temperature = Number(response?.current?.temperature_2m);
+      if (integration.provider === 'openweather' && integration.openWeatherApiKey) {
+        const response = await request({
+          method: 'GET',
+          uri: 'https://api.openweathermap.org/data/2.5/weather',
+          qs: {
+            lat: this.ABERDEEN_COORDS.latitude,
+            lon: this.ABERDEEN_COORDS.longitude,
+            units: 'metric',
+            appid: integration.openWeatherApiKey,
+          },
+          json: true,
+        });
+        temperature = Number(response?.main?.temp);
+      } else {
+        const response = await request({
+          method: 'GET',
+          uri: 'https://api.open-meteo.com/v1/forecast',
+          qs: {
+            latitude: this.ABERDEEN_COORDS.latitude,
+            longitude: this.ABERDEEN_COORDS.longitude,
+            current: 'temperature_2m',
+            temperature_unit: 'celsius',
+          },
+          json: true,
+        });
+        temperature = Number(response?.current?.temperature_2m);
+      }
+
       if (!Number.isFinite(temperature)) {
         throw new Error('Missing temperature in response');
       }

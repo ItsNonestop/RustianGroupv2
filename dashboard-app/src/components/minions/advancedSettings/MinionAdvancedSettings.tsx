@@ -6,6 +6,7 @@ import { MinionSync } from "./MinionSync";
 import { MinionFetchCommands } from "./MinionFetchCommands";
 import { MinionRecordCommandCommands } from "./MinionRecordCommandCommands";
 import { Minion } from "../../../services/minions.service";
+import { MinionMockIntegrations } from "./MinionMockIntegrations";
 
 interface MinionAdvancedSettingsProps {
 	fontRatio: number;
@@ -16,6 +17,7 @@ export function MinionAdvancedSettings(props: MinionAdvancedSettingsProps) {
 	const { fontRatio, minion } = props;
 	const [isFetchCommandsAvailable, setIsFetchCommandsAvailable] = useState<boolean>();
 	const [isRecordingSupported, setIsRecordingSupported] = useState<boolean>();
+	const showMockIntegrations = minion.device.brand === 'mock' && minion.device.model === 'Temperature Sensor Demo';
 
 	useEffect(() => {
 		(async () => {
@@ -45,5 +47,7 @@ export function MinionAdvancedSettings(props: MinionAdvancedSettingsProps) {
 		{!minion.readonly && isFetchCommandsAvailable && <MinionFetchCommands minion={minion} fontRatio={fontRatio} />}
 		{!minion.readonly && isRecordingSupported && <Divider style={{ width: '100%', marginTop: fontRatio * 0.2 }} variant={'fullWidth'} />}
 		{!minion.readonly && isRecordingSupported && <MinionRecordCommandCommands minion={minion} fontRatio={fontRatio} />}
+		{showMockIntegrations && <Divider style={{ width: '100%', marginTop: fontRatio * 0.2 }} variant={'fullWidth'} />}
+		{showMockIntegrations && <MinionMockIntegrations fontRatio={fontRatio} />}
 	</Grid>;
 }

@@ -87,6 +87,19 @@ export const ErrorResponseSchema: ObjectSchema = Joi.object()
 	})
 	.required();
 
+export const MockTemperatureIntegrationSettingsSchema: ObjectSchema = Joi.object()
+	.keys({
+		provider: Joi.allow('open-meteo', 'openweather').required(),
+		openWeatherApiKey: Joi.string().allow(''),
+	})
+	.required();
+
+export const MockIntegrationsSettingsSchema: ObjectSchema = Joi.object()
+	.keys({
+		temperatureSensor: MockTemperatureIntegrationSettingsSchema.required(),
+	})
+	.required();
+
 /**
  * Get request client IP.
  */

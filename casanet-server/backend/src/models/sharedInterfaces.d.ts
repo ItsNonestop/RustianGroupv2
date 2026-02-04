@@ -54,6 +54,26 @@ export declare interface RemoteSettings {
 }
 
 /**
+ * Supported weather providers for mock integrations.
+ */
+export declare type WeatherProvider = 'open-meteo' | 'openweather';
+
+/**
+ * Mock temperature sensor integration settings.
+ */
+export declare interface MockTemperatureIntegrationSettings {
+	provider: WeatherProvider;
+	openWeatherApiKey?: string;
+}
+
+/**
+ * Mock integrations settings.
+ */
+export declare interface MockIntegrationsSettings {
+	temperatureSensor?: MockTemperatureIntegrationSettings;
+}
+
+/**
  * Login schema model.
  */
 export declare interface Login {
